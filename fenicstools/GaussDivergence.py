@@ -1,14 +1,18 @@
 __author__ = "Miroslav Kuchta <mirok@math.uio.no>"
 __date__ = "2014-04-05"
 __copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU Lesser GPL version 3 or any later version"
+__license__ = "GNU Lesser GPL version 3 or any later version"
 
 import inspect
-from dolfin import TensorFunctionSpace, VectorFunctionSpace, FunctionSpace,\
-    Function, interpolate, compile_extension_module, GenericFunction, assemble, \
-    TrialFunction, TestFunction, dx, Matrix, dot, div
-from fenicstools import SetMatrixValue
 from os.path import abspath, join
+
+from dolfin import (TensorFunctionSpace, VectorFunctionSpace, FunctionSpace,
+                    Function, interpolate, compile_extension_module,
+                    GenericFunction, assemble, TrialFunction, TestFunction,
+                    dx, dot, div)
+
+from .CRInterpolation import cg1_cr_interpolation_matrix
+
 
 folder = abspath(join(inspect.getfile(inspect.currentframe()), '../fem'))
 code = open(join(folder, 'cr_divergence.cpp'), 'r').read()
@@ -38,7 +42,7 @@ def gauss_divergence(u, mesh=None):
         _mesh = u.function_space().mesh()
     else:
         _mesh = mesh
-    
+
     tdim = _mesh.topology().dim()
     gdim = _mesh.geometry().dim()
     assert tdim == gdim
@@ -74,11 +78,11 @@ def gauss_divergence(u, mesh=None):
 
     return divu
 
-from CRInterpolation import cg1_cr_interpolation_matrix
+
 def divergence_matrix(mesh):
     CR = VectorFunctionSpace(mesh, 'CR', 1)
     DG = FunctionSpace(mesh, 'DG', 0)
-    A = cg1_cr_interpolation_matrix(mesh)    
-    M  = assemble(dot(div(TrialFunction(CR)), TestFunction(DG))*dx())
+    A = cg1_cr_interpolation_matrix(mesh)
+    M = assemble(dot(div(TrialFunction(CR)), TestFunction(DG)) * dx())
     C = compiled_cr_module.cr_divergence_matrix(M, A, DG, CR)
     return C

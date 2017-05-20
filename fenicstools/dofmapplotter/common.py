@@ -5,6 +5,7 @@ __license__ = 'GNU Lesser GPL version 3 or any later version'
 
 import inspect
 from os.path import abspath, join
+
 from dolfin import compile_extension_module
 
 
@@ -37,24 +38,23 @@ class ParallelColorPrinter(object):
         '''Print string in given color. With line_break=False the function
         behaves like `print string,`.'''
         if self.mpi_size > 1:
-            mpi_string = 'Process number %d, ' % self.mpi_rank
+            mpi_string = 'Process number {}, ' % self.mpi_rank
         else:
             mpi_string = ''
 
         if self.fig_num is not None:
-            fig_string = 'Figure %d : ' % self.fig_num
+            fig_string = 'Figure {} : ' % self.fig_num
         else:
             fig_string = ''
 
         if color in self.color_templates:
             template = self.color_templates[color]
         else:
-            template = '%s%s%s'
-
-        print template % (mpi_string, fig_string, string),
+            template = '{}{}{}'
+        print((template.format(mpi_string, fig_string, string)))
 
         if line_break:
-            print ''
+            print('')
 
 
 def signature(V):
@@ -99,13 +99,13 @@ def extract_dofmaps(V):
                 Vi = V.sub(i)
                 dofmaps += extract_dofmaps(Vi)
             return dofmaps
-            
+
+
 def extract_elements(V):
-    '''Extract element of every component of V.
-    S, space whose signature is 0 has only one element
-    V, space whose signature is 3, has 3 elements V.sub(i).element(), i = 0, 1, 2
-    M=[S, V], space whose signature is [0, 3] has four dofmaps, M.sub(0) and
-    (M.element().sub(1)).sub(i), i = 0, 1, 2'''
+    '''Extract element of every component of V. S, space whose signature is 0
+    has only one element V, space whose signature is 3, has 3 elements
+    V.sub(i).element(), i = 0, 1, 2 M=[S, V], space whose signature is [0, 3]
+    has four dofmaps, M.sub(0) and (M.element().sub(1)).sub(i), i = 0, 1, 2'''
     signature_ = signature(V)
     if type(signature_) is int:
         if signature_ == 0:
@@ -149,7 +149,7 @@ def bounds(V):
         signature_ = V
     signature_ = flat_signature(signature_)
     trans = lambda x: x if x else x + 1
-    signature_ = map(trans, signature_)
+    signature_ = list(map(trans, signature_))
     limits = partial_sum(signature_)
     limits = [0] + limits
 
@@ -163,19 +163,19 @@ def subspace_index(flat_index, bounds_=None):
     # If arg if FunctionSpace get subspace indices of all dofmaps
     if is_function_space(flat_index):
         b = bounds(flat_index)
-        f = range(b[-1])
+        f = list(range(b[-1]))
         return subspace_index(f, b)
     else:
         assert bounds_ is not None
 
         if type(flat_index) is int:
-            for i in range(len(bounds_)-1):
-                if bounds_[i] <= flat_index < bounds_[i+1]:
+            for i in range(len(bounds_) - 1):
+                if bounds_[i] <= flat_index < bounds_[i + 1]:
                     return [i]
             return [-1]
         elif type(flat_index) is list:
-            partial = lambda index : subspace_index(index, bounds_)
-            return sum(map(partial, flat_index), [])
+            partial = lambda index: subspace_index(index, bounds_)
+            return sum(list(map(partial, flat_index)), [])
 
 
 def partial_sum(xs):
@@ -196,10 +196,11 @@ def is_function_space(V):
     try:
         V.dofmap()
         return True
-    except:
+    except Exception:
         return False
 
 # -----------------------------------------------------------------------------
+
 
 if __name__ == '__main__':
     from dolfin import *
@@ -229,14 +230,14 @@ if __name__ == '__main__':
 
     _dofmaps = extract_dofmaps(M)
     _bounds = bounds(M)
-    print 'Signature of M:', signature(M)
-    print 'Flat signature of M:', flat_signature(M)
-    print 'Bounds of M:', _bounds
-    print 'Sub. indices for comps [0, 1]:', subspace_index([0, 1], _bounds)
-    print 'Sub. indices for all comps:', subspace_index(M)
+    print(('Signature of M:', signature(M)))
+    print(('Flat signature of M:', flat_signature(M)))
+    print(('Bounds of M:', _bounds))
+    print(('Sub. indices for comps [0, 1]:', subspace_index([0, 1], _bounds)))
+    print(('Sub. indices for all comps:', subspace_index(M)))
 
     for i in range(len(_bounds) - 1):
         first = _bounds[i]
         last = _bounds[i + 1]
         for j in range(first, last):
-            print _dofmaps[j].dofs()
+            print((_dofmaps[j].dofs()))

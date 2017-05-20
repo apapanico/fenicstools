@@ -8,11 +8,14 @@ This module contains functionality for Lagrangian tracking of particles with
 DOLFIN
 '''
 
-import dolfin as df
-import numpy as np
 import copy
-from mpi4py import MPI as pyMPI
 from collections import defaultdict
+from math import sqrt
+from itertools import product
+
+import numpy as np
+import dolfin as df
+from mpi4py import MPI as pyMPI
 
 # Disable printing
 __DEBUG__ = False
@@ -22,9 +25,11 @@ comm = pyMPI.COMM_WORLD
 # collisions tests return this value or -1 if there is no collision
 __UINT32_MAX__ = np.iinfo('uint32').max
 
+
 class Particle:
     __slots__ = ['position', 'properties']
     'Lagrangian particle with position and some other passive properties.'
+
     def __init__(self, x):
         self.position = x
         self.properties = {}
@@ -42,6 +47,7 @@ class Particle:
 
 class CellWithParticles(df.Cell):
     'Dolfin cell with list of particles that it contains.'
+
     def __init__(self, mesh, cell_id, particle):
         # Initialize parent -- create Cell with id on mesh
         df.Cell.__init__(self, mesh, cell_id)
@@ -52,10 +58,15 @@ class CellWithParticles(df.Cell):
         # connected to this one by vertices
         tdim = mesh.topology().dim()
 
-        neighbors = sum((vertex.entities(tdim).tolist() for vertex in df.vertices(self)), [])
+        neighbors = sum(
+            (vertex.entities(tdim).tolist() for vertex in df.vertices(self)),
+            []
+        )
         neighbors = set(neighbors) - set([cell_id])   # Remove self
-        self.neighbors = map(lambda neighbor_index: df.Cell(mesh, neighbor_index), 
-                             neighbors)
+        self.neighbors = [
+            df.Cell(mesh, neighbor_index)
+            for neighbor_index in neighbors
+        ]
 
     def __add__(self, particle):
         'Add single particle to cell.'
@@ -73,6 +84,7 @@ class CellWithParticles(df.Cell):
 
 class CellParticleMap(dict):
     'Dictionary of cells with particles.'
+
     def __add__(self, ins):
         '''
         Add ins to map:
@@ -106,11 +118,12 @@ class CellParticleMap(dict):
 
     def total_number_of_particles(self):
         'Total number of particles in all cells of the map.'
-        return sum(map(len, self.itervalues()))
+        return sum(map(len, iter(list(self.values()))))
 
 
 class LagrangianParticles:
     'Particles moved by the velocity field in V.'
+
     def __init__(self, V):
         self.__debug = __DEBUG__
 
@@ -126,7 +139,8 @@ class LagrangianParticles:
         # update basis_i(x) depending on x, i.e. particle where we make
         # interpolation. This updaea mounts to computing the basis matrix
         self.dim = self.mesh.topology().dim()
-        self.mesh.init(0, self.dim)  # Vertex-to-cell connectivity for neighb. comput
+        # Vertex-to-cell connectivity for neighb. comput
+        self.mesh.init(0, self.dim)
 
         self.element = V.dolfin_element()
         self.num_tensor_entries = 1
@@ -144,21 +158,19 @@ class LagrangianParticles:
         # Allocate some MPI stuff
         self.num_processes = comm.Get_size()
         self.myrank = comm.Get_rank()
-        self.all_processes = range(self.num_processes)
-        self.other_processes = range(self.num_processes)
+        self.all_processes = list(range(self.num_processes))
+        self.other_processes = list(range(self.num_processes))
         self.other_processes.remove(self.myrank)
         self.my_escaped_particles = np.zeros(1, dtype='I')
         self.tot_escaped_particles = np.zeros(self.num_processes, dtype='I')
         # Dummy particle for receiving/sending at [0, 0, ...]
         self.particle0 = Particle(np.zeros(self.mesh.geometry().dim()))
 
-
     def __iter__(self):
         '''Iterate over all particles.'''
-        for cwp in self.particle_map.itervalues():
+        for cwp in list(self.particle_map.values()):
             for particle in cwp.particles:
                 yield particle
-
 
     def add_particles(self, list_of_particles, properties_d=None):
         '''Add particles and search for their home on all processors.
@@ -168,10 +180,10 @@ class LagrangianParticles:
         if properties_d is not None:
             n = len(list_of_particles)
             assert all(len(sub_list) == n
-                       for sub_list in properties_d.itervalues())
+                       for sub_list in list(properties_d.values()))
             # Dictionary that will be used to feed properties of single
             # particles
-            properties = properties_d.keys()
+            properties = list(properties_d.keys())
             particle_properties = dict((key, 0) for key in properties)
 
             has_properties = True
@@ -205,15 +217,15 @@ class LagrangianParticles:
             # Print particle info
             if self.__debug:
                 for i in missing:
-                    print 'Missing', list_of_particles[i].position
+                    print(('Missing', list_of_particles[i].position))
 
                 n_duplicit = len(np.where(all_found > 1)[0])
-                print 'There are %d duplicit particles' % n_duplicit
+                print(('There are %d duplicit particles' % n_duplicit))
 
     def step(self, u, dt):
         'Move particles by forward Euler x += u*dt'
         start = df.Timer('shift')
-        for cwp in self.particle_map.itervalues():
+        for cwp in list(self.particle_map.values()):
             # Restrict once per cell
             u.restrict(self.coefficients,
                        self.element,
@@ -227,11 +239,12 @@ class LagrangianParticles:
                                                 x,
                                                 cwp.get_vertex_coordinates(),
                                                 cwp.orientation())
-                x[:] = x[:] + dt*np.dot(self.coefficients, self.basis_matrix)[:]
+                x[:] = x[:] + \
+                    dt * np.dot(self.coefficients, self.basis_matrix)[:]
         # Recompute the map
         stop_shift = start.stop()
-        start =df.Timer('relocate')
-        info = self.relocate()
+        start = df.Timer('relocate')
+        # info = self.relocate()
         stop_reloc = start.stop()
         # We return computation time per process
         return (stop_shift, stop_reloc)
@@ -242,7 +255,7 @@ class LagrangianParticles:
         # Map such that map[old_cell] = [(new_cell, particle_id), ...]
         # Ie new destination of particles formerly in old_cell
         new_cell_map = defaultdict(list)
-        for cwp in p_map.itervalues():
+        for cwp in list(p_map.values()):
             for i, particle in enumerate(cwp.particles):
                 point = df.Point(*particle.position)
                 # Search only if particle moved outside original cell
@@ -263,7 +276,7 @@ class LagrangianParticles:
         # Rebuild locally the particles that end up on the process. Some
         # have cell_id == -1, i.e. they are on other process
         list_of_escaped_particles = []
-        for old_cell_id, new_data in new_cell_map.iteritems():
+        for old_cell_id, new_data in list(new_cell_map.items()):
             # We iterate in reverse becasue normal order would remove some
             # particle this shifts the whole list!
             for (new_cell_id, i) in sorted(new_data,
@@ -271,7 +284,7 @@ class LagrangianParticles:
                                            reverse=True):
                 particle = p_map.pop(old_cell_id, i)
 
-                if new_cell_id == -1 or new_cell_id == __UINT32_MAX__ :
+                if (new_cell_id == -1) or (new_cell_id == __UINT32_MAX__):
                     list_of_escaped_particles.append(particle)
                 else:
                     p_map += self.mesh, new_cell_id, particle
@@ -291,7 +304,8 @@ class LagrangianParticles:
             for proc in self.other_processes:
                 for i in range(self.tot_escaped_particles[proc]):
                     self.particle0.recv(proc)
-                    list_of_escaped_particles.append(copy.deepcopy(self.particle0))
+                    list_of_escaped_particles.append(
+                        copy.deepcopy(self.particle0))
 
         # Put all travelling particles on all processes, then perform new search
         travelling_particles = comm.bcast(list_of_escaped_particles, root=0)
@@ -328,14 +342,14 @@ class LagrangianParticles:
 
         # Slaves should send to master
         if self.myrank > 0:
-            for cwp in p_map.itervalues():
+            for cwp in list(p_map.values()):
                 for p in cwp.particles:
                     p.send(0)
         else:
             # Receive on master
             received = defaultdict(list)
             received[0] = [copy.copy(p.position)
-                           for cwp in p_map.itervalues()
+                           for cwp in list(p_map.values())
                            for p in cwp.particles]
             for proc in self.other_processes:
                 # Receive all_particles[proc]
@@ -371,19 +385,16 @@ class LagrangianParticles:
         comm.Gather(np.array([my_particles], 'I'), all_particles, root=0)
 
         if self.myrank == 0 and self.num_processes > 1:
-            ax.bar(np.array(self.all_processes)-0.25, all_particles, 0.5)
+            ax.bar(np.array(self.all_processes) - 0.25, all_particles, 0.5)
             ax.set_xlabel('proc')
             ax.set_ylabel('number of particles')
-            ax.set_xlim(-0.25, max(self.all_processes)+0.25)
+            ax.set_xlim(-0.25, max(self.all_processes) + 0.25)
             return np.sum(all_particles)
         else:
             return None
 
+
 # Simple initializers for particle positions
-
-from math import pi, sqrt
-from itertools import product
-
 comm = pyMPI.COMM_WORLD
 
 
@@ -391,6 +402,7 @@ class RandomGenerator(object):
     '''
     Fill object by random points.
     '''
+
     def __init__(self, domain, rule):
         '''
         Domain specifies bounding box for the shape and is used to generate
@@ -414,7 +426,7 @@ class RandomGenerator(object):
                 n_points = np.product(N)
                 points = np.random.rand(n_points, self.dim)
                 for i, (a, b) in enumerate(self.domain):
-                    points[:, i] = a + points[:, i]*(b-a)
+                    points[:, i] = a + points[:, i] * (b - a)
             # Create points by tensor product of intervals
             else:
                 # Values from [0, 1) used to create points between
@@ -422,14 +434,13 @@ class RandomGenerator(object):
                 # points in each of the directiosn
                 shifts_i = np.array([np.random.rand(n) for n in N])
                 # Create candidates for each directions
-                points_i = (a+shifts_i[i]*(b-a)
+                points_i = (a + shifts_i[i] * (b - a)
                             for i, (a, b) in enumerate(self.domain))
                 # Cartesian product of directions yield n-d points
                 points = (np.array(point) for point in product(*points_i))
 
-
             # Use rule to see which points are inside
-            points_inside = np.array(filter(self.rule, points))
+            points_inside = np.array(list(filter(self.rule, points)))
         else:
             points_inside = None
 
@@ -449,9 +460,9 @@ class RandomRectangle(RandomGenerator):
 class RandomCircle(RandomGenerator):
     def __init__(self, center, radius):
         assert radius > 0
-        domain = [[center[0]-radius, center[0]+radius],
-                  [center[1]-radius, center[1]+radius]]
-        RandomGenerator.__init__(self, domain,
-                                 lambda x: sqrt((x[0]-center[0])**2 +
-                                                (x[1]-center[1])**2) < radius
-                                 )
+        domain = [[center[0] - radius, center[0] + radius],
+                  [center[1] - radius, center[1] + radius]]
+        RandomGenerator.__init__(
+            self, domain,
+            lambda x:
+                sqrt((x[0] - center[0])**2 + (x[1] - center[1])**2) < radius)

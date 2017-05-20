@@ -3,15 +3,11 @@ __date__ = '2014-04-23'
 __copyright__ = 'Copyright (C) 2013 ' + __author__
 __license__ = 'GNU Lesser GPL version 3 or any later version'
 
-from meshentityhandler import MeshEntityHandler
-from dofhandler import DofHandler
 from dolfin import facets, Edge
-try:
-    import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-except:
-    import warnings
-    warnings.warn("matplotlib not installed")
+from .meshentityhandler import MeshEntityHandler
+from .dofhandler import DofHandler
 
 
 class DofMapPlot(object):
@@ -55,8 +51,8 @@ class DofMapPlot(object):
 
         # Get colors for plotting edges
         cmap = plt.get_cmap(options['colors']['mesh'])
-        edge_color = cmap(cmap.N/2)
-        bdr_edge_color = cmap(9*cmap.N/10)
+        edge_color = cmap(cmap.N / 2)
+        bdr_edge_color = cmap(9 * cmap.N / 10)
 
         # Plot the edges and get min/max of coordinate axis
         x_min_max = self._plot_edges(ax, mesh, edge_color, bdr_edge_color)
@@ -78,7 +74,7 @@ class DofMapPlot(object):
         # Compute boundary edges for inter-process boundaries
         if self.mpi_size > 1:
             # Facet cell connectivity, 2d = edge->cell, 3d = facet->cell
-            mesh.init(tdim-1, tdim)
+            mesh.init(tdim - 1, tdim)
             # In 2d bdr edge has different number of local and global cells
             if tdim == 2:
                 bdr_edges =\
@@ -89,7 +85,7 @@ class DofMapPlot(object):
             # and global cells
             else:
                 # Face -> edge connectivity
-                mesh.init(tdim-1, 1)
+                mesh.init(tdim - 1, 1)
                 bdr_edges =\
                     set(map(int, sum([f.entities(1).tolist()
                                       for f in facets(mesh)

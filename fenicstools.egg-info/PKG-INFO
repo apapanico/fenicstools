@@ -1,0 +1,16 @@
+Metadata-Version: 1.1
+Name: fenicstools
+Version: 2017.1
+Summary: fenicstools -- tools for postprocessing in FEniCS programs
+Home-page: https://github.com/mikaem/fenicstools.git
+Author: Mikael Mortensen
+Author-email: mikaem@math.uio.no
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Programming Language :: Python :: 2.6
+Classifier: License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Software Development :: Libraries :: Python Modules

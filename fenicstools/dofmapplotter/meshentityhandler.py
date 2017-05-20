@@ -3,16 +3,13 @@ __date__ = '2014-04-23'
 __copyright__ = 'Copyright (C) 2013 ' + __author__
 __license__ = 'GNU Lesser GPL version 3 or any later version'
 
-from common import dmt_number_entities
-from dofmaphandler import DofMapHandler
-from dolfin import Cell, MeshEntity
 import time
-try:
-    from matplotlib.pyplot import get_cmap
 
-except:
-    import warnings
-    warnings.warn("matplotlib not installed")
+from dolfin import Cell, MeshEntity
+from matplotlib.pyplot import get_cmap
+
+from .common import dmt_number_entities
+from .dofmaphandler import DofMapHandler
 
 
 class MeshEntityHandler(DofMapHandler):
@@ -29,7 +26,7 @@ class MeshEntityHandler(DofMapHandler):
         self.tdim = mesh.topology().dim()
 
         # Make sure we have global indicies for all mesh entities
-        for tdim in range(self.tdim+1):
+        for tdim in range(self.tdim + 1):
             dmt_number_entities(mesh, tdim)
 
         # Get axes based on 2d or 3d
@@ -44,7 +41,7 @@ class MeshEntityHandler(DofMapHandler):
         # Color for plotting enties
         cmap = get_cmap(options['colors']['mesh_entities'])
         N = cmap.N
-        self.mesh_entity_colors = {i: cmap(i**2*N/10) for i in range(4)}
+        self.mesh_entity_colors = {i: cmap(i**2 * N / 10) for i in range(4)}
 
     def __call__(self, event):
         'Make actions based on event key.'
@@ -89,7 +86,7 @@ class MeshEntityHandler(DofMapHandler):
         elif pressed_gc and not self.showing_all_mesh_entities[tdim]:
             start = time.time()
             self.printer('Processing ...', 'blue')
-            cell_indices = xrange(self.mesh.num_cells())
+            cell_indices = list(range(self.mesh.num_cells()))
 
             for cell_index in cell_indices:
                 self._single_mesh_entity_plot(cell_index, tdim)
@@ -103,7 +100,7 @@ class MeshEntityHandler(DofMapHandler):
 
         # Remove all the existing labels
         elif not (pressed_lc or pressed_gc):
-            for label in self.mesh_entity_labels[tdim].itervalues():
+            for label in list(self.mesh_entity_labels[tdim].values()):
                 label.set_visible(False)
             self.mesh_entity_labels[tdim].clear()
 

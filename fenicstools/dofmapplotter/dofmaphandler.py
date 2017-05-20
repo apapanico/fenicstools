@@ -3,12 +3,14 @@ __date__ = '2014-04-23'
 __copyright__ = 'Copyright (C) 2013 ' + __author__
 __license__ = 'GNU Lesser GPL version 3 or any later version'
 
-from common import ParallelColorPrinter
 from dolfin import Point
+
+from .common import ParallelColorPrinter
 
 
 class DofMapHandler(object):
     'Parent class for DofHadler and MeshEntityHandler.'
+
     def __init__(self, dmp, options):
         # Customize the printer
         mpi_rank = dmp.mpi_rank
@@ -34,8 +36,8 @@ class DofMapHandler(object):
             x_string = self.axes.format_coord(event.xdata, event.ydata)
             split_on = ',' if x_string.find(',') > -1 else ' '
             try:
-                x = map(float, [w.split('=')[1]
-                                for w in x_string.split(split_on) if w])
+                x = list(map(float, [w.split('=')[1]
+                                for w in x_string.split(split_on) if w]))
                 cell_indices = bb_tree.compute_entity_collisions(Point(*x))
             # Click outside figure?
             except ValueError:

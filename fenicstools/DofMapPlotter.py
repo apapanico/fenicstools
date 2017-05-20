@@ -3,13 +3,11 @@ __date__ = '2014-04-23'
 __copyright__ = 'Copyright (C) 2013 ' + __author__
 __license__ = 'GNU Lesser GPL version 3 or any later version'
 
-from dofmapplotter import *
+from matplotlib.pyplot import show as plt_show
 from dolfin import MPI
-try:
-    from matplotlib.pyplot import show as plt_show
-except:
-    import warnings
-    warnings.warn("matplotlib not installed")
+
+from .dofmapplotter import *
+
 
 class DofMapPlotter(object):
 
@@ -69,7 +67,7 @@ class DofMapPlotter(object):
         'String representation same as FunctionSpace.print_dofmap()'
         return '\n'.join(
             ['%d: ' % i + ' '.join(map(str,
-                                        sum([d.cell_dofs(i).tolist()
+                                       sum([d.cell_dofs(i).tolist()
                                             for d in self.dofmaps], [])))
              for i in range(self.V.mesh().num_cells())])
 
@@ -86,7 +84,7 @@ class DofMapPlotter(object):
             # Convert component to list if necessary and perform validity check
             component = component if type(component) is list else [component]
             # If component is empty plot all dofmaps
-            component = component if component else range(self.num_dofmaps())
+            component = component if component else list(range(self.num_dofmaps()))
             if not self._arg_check(component):
                 raise ValueError('Component is not list or in [0, %d)' %
                                  self.num_dofmaps())
@@ -99,7 +97,7 @@ class DofMapPlotter(object):
             assert (0 <= sub < self.num_subspaces()) and (type(sub) is int)
 
             # Compute component of subspace
-            sub_component = range(self.bounds[sub], self.bounds[sub+1])
+            sub_component = list(range(self.bounds[sub], self.bounds[sub + 1]))
 
             # Plot
             self.plot(component=sub_component, sub=None, order=order)
@@ -114,4 +112,4 @@ class DofMapPlotter(object):
 
     def num_subspaces(self):
         'Return number of subspaces in the function space.'
-        return len(self.bounds)-1
+        return len(self.bounds) - 1

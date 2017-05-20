@@ -3,11 +3,13 @@ __date__ = '2014-04-23'
 __copyright__ = 'Copyright (C) 2013 ' + __author__
 __license__ = 'GNU Lesser GPL version 3 or any later version'
 
-from dofmaphandler import DofMapHandler
-from common import x_to_str, subspace_index, extract_elements
-from dolfin import Cell
 import time
+
 import numpy as np
+from dolfin import Cell
+
+from .dofmaphandler import DofMapHandler
+from .common import x_to_str, subspace_index
 
 
 class DofHandler(DofMapHandler):
@@ -83,7 +85,7 @@ class DofHandler(DofMapHandler):
         elif (event.key == 'D') and not self.showing_all_dofs:
             start = time.time()
             self.printer('Processing ...', 'blue')
-            cell_indices = xrange(self.mesh.num_cells())
+            cell_indices = list(range(self.mesh.num_cells()))
             for cell_index in cell_indices:
                 self._cell_dof_plot(cell_index)
             self.fig.canvas.draw()
@@ -93,9 +95,9 @@ class DofHandler(DofMapHandler):
 
         # Remove any existing dof labels/positions
         elif not((event.key == 'd') or (event.key == 'D')):
-            [so.remove() for so in self.scatter_objects.itervalues()]
+            [so.remove() for so in list(self.scatter_objects.values())]
 
-            [to.set_visible(False) for to in self.text_objects.itervalues()]
+            [to.set_visible(False) for to in list(self.text_objects.values())]
 
             self.showing_all_dofs = False
             self.scatter_objects = {}
@@ -139,7 +141,7 @@ class DofHandler(DofMapHandler):
         changed_labels = []
         order = self.order
         first_dof = self.first_dof
-        
+
         for i, j in enumerate(self.component):
             cell = Cell(self.mesh, cell_index)
             dofs = self.dofmaps[j].cell_dofs(cell_index)
