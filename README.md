@@ -11,7 +11,8 @@ fenicstools
 Description
 -----------
 
-The fenicstools repository contains tools for the FEniCS problem solving environment.  This fork updates fenicstools to work with FEniCS version 2017.1.0, adhere to PEP8 formatting, and work with Python 3.
+The fenicstools repository contains tools for the FEniCS problem solving environment.  This fork updates fenicstools to work with FEniCS version 2017.1.0, adhere to PEP8 formatting, and work with Python 3.  The original examples in mikaem/fenicstools/wiki have minor discrepancies that can be easily fixed to work again.
+
 
 Authors
 -------
