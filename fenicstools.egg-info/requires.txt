@@ -1,5 +1,0 @@
-mpi4py
-numpy
-matplotlib
-h5py
-pyvtk
